@@ -1,0 +1,48 @@
+*aspire.txt*    Launch and debug .NET Aspire AppHosts from Neovim
+
+==============================================================================
+CONTENTS                                                     *aspire-contents*
+
+    1. Introduction ........... |aspire-introduction|
+    2. Setup ................... |aspire-setup|
+    3. Commands ................ |aspire-commands|
+
+==============================================================================
+1. Introduction                                          *aspire-introduction*
+
+nvim-aspire treats a VS Code `.vscode/launch.json` entry of
+`"type": "aspire"` as a first-class launch target: it launches the AppHost,
+surfaces its dashboard URL, and can attach |nvim-dap| to the .NET services
+the AppHost spawns.
+
+==============================================================================
+2. Setup                                                        *aspire-setup*
+
+>lua
+    require("aspire").setup({})
+<
+
+==============================================================================
+3. Commands                                                  *aspire-commands*
+
+                                                                *:AspireLaunch*
+:AspireLaunch       Parse `.vscode/launch.json`, find the AppHost, run it,
+                     stream output to a log buffer, surface the dashboard
+                     URL.
+
+                                                                  *:AspireStop*
+:AspireStop          Stop the running AppHost and its child processes.
+
+                                                             *:AspireDashboard*
+:AspireDashboard     Open the Aspire dashboard URL.
+
+                                                             *:AspireResources*
+:AspireResources     List running resources.
+
+                                                                *:AspireAttach*
+:AspireAttach        Attach |nvim-dap| to a running .NET service.
+
+                                                             *:AspireAttachAll*
+:AspireAttachAll     Attach |nvim-dap| to every discovered .NET service.
+
+ vim:tw=78:ts=8:noet:ft=help:norl:
