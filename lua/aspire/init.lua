@@ -97,8 +97,13 @@ function M.stop()
   require("aspire.runner").stop()
 end
 
+function M.resources()
+  require("aspire.dashboard").resources()
+end
+
 vim.api.nvim_create_user_command("AspireLaunch", M.launch, {})
 vim.api.nvim_create_user_command("AspireDashboard", M.dashboard, {})
 vim.api.nvim_create_user_command("AspireStop", M.stop, {})
+vim.api.nvim_create_user_command("AspireResources", M.resources, {})
 
 return M

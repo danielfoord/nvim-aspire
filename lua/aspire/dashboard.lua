@@ -10,4 +10,15 @@ function M.open()
   vim.ui.open(runner.dashboard_url)
 end
 
+--- List running Aspire resources.
+--- Stub for v1: Aspire's resource-state API isn't stable/documented
+--- enough to build against confidently yet — use the dashboard UI
+--- directly for now.
+function M.resources()
+  vim.notify(
+    "aspire: :AspireResources not implemented yet — use :AspireDashboard to see running resources",
+    vim.log.levels.WARN
+  )
+end
+
 return M
