@@ -2,7 +2,17 @@ local M = {}
 
 M.job = nil -- vim.SystemObj handle for the running AppHost, nil when stopped
 M.buf = nil -- log buffer number
-M.dashboard_url = nil -- populated once dashboard URL detection lands
+M.dashboard_url = nil -- set once the AppHost prints its dashboard login URL
+
+local DASHBOARD_URL_PATTERN = "https?://[^%s]+/login%?t=[^%s]+"
+
+--- Extract an Aspire dashboard login URL from a line of AppHost output,
+--- e.g. "Login to the dashboard at https://localhost:17225/login?t=...".
+---@param line string
+---@return string|nil
+function M.detect_dashboard_url(line)
+  return line:match(DASHBOARD_URL_PATTERN)
+end
 
 local function ensure_log_buffer()
   if M.buf and vim.api.nvim_buf_is_valid(M.buf) then
@@ -30,14 +40,27 @@ local function append_line(line)
   end)
 end
 
+local function process_line(line)
+  if not M.dashboard_url then
+    local url = M.detect_dashboard_url(line)
+    if url then
+      M.dashboard_url = url
+      vim.schedule(function()
+        vim.notify("aspire: dashboard available at " .. url, vim.log.levels.INFO)
+      end)
+    end
+  end
+  append_line(line)
+end
+
 local function on_output(prefix)
   return function(err, data)
     if err then
-      append_line("[" .. prefix .. ":err] " .. err)
+      process_line("[" .. prefix .. ":err] " .. err)
     end
     if data then
       for _, line in ipairs(vim.split(data, "\n", { plain = true, trimempty = true })) do
-        append_line(line)
+        process_line(line)
       end
     end
   end
@@ -54,6 +77,7 @@ function M.run(apphost_path, opts)
     return
   end
 
+  M.dashboard_url = nil
   ensure_log_buffer()
   append_line("[aspire] dotnet run --project " .. apphost_path)
 

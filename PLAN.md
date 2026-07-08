@@ -96,7 +96,7 @@ Once `:AspireLaunch` has an AppHost running, the user needs to attach a debugger
 3. [x] `discovery.lua` with plenary specs against fixture project trees.
 4. [x] `launch_profiles.lua` with plenary specs against fixture `launchSettings.json`.
 5. [x] `runner.lua` + `init.lua` wiring — `:AspireLaunch` runs `dotnet run`, streams to log buffer. Verify manually against a real Aspire sample app.
-6. Dashboard URL detection + `:AspireDashboard`. Verify manually.
+6. [x] Dashboard URL detection + `:AspireDashboard`. Verify manually.
 7. `:AspireStop` with process-tree kill. Verify manually (`ps` before/after).
 8. `:AspireResources` stub.
 9. `dap.lua`: `parse_ps_output` + `build_tree` pure functions with plenary specs.
