@@ -12,6 +12,32 @@ Early development. See [PLAN.md](./PLAN.md) for design and milestones.
 - `dotnet` CLI on `$PATH`
 - [nvim-dap](https://github.com/mfussenegger/nvim-dap) + `netcoredbg` (only required for debugger attach, not for launch/orchestration)
 
+## Installation
+
+**[lazy.nvim](https://github.com/folke/lazy.nvim)**
+
+```lua
+{
+  "danielfoord/nvim-aspire",
+  dependencies = { "mfussenegger/nvim-dap" }, -- optional, only needed for :AspireAttach*
+  opts = {},
+}
+```
+
+**[packer.nvim](https://github.com/wbthomason/packer.nvim)**
+
+```lua
+use({
+  "danielfoord/nvim-aspire",
+  requires = { "mfussenegger/nvim-dap" }, -- optional, only needed for :AspireAttach*
+  config = function()
+    require("aspire").setup({})
+  end,
+})
+```
+
+Run `:checkhealth aspire` after installing to confirm `dotnet`, `netcoredbg`, and `nvim-dap` are all detected correctly.
+
 ## Commands
 
 - `:AspireLaunch` — parse `.vscode/launch.json`, find the AppHost, run it, stream output to a log buffer, surface the dashboard URL.
@@ -25,6 +51,19 @@ Early development. See [PLAN.md](./PLAN.md) for design and milestones.
 
 ```lua
 require("aspire").setup({})
+```
+
+## Keymaps
+
+Not set by default — add whichever of these you want, e.g. under a `<leader>a` ("aspire") prefix:
+
+```lua
+vim.keymap.set("n", "<leader>al", "<cmd>AspireLaunch<cr>", { desc = "Aspire: Launch AppHost" })
+vim.keymap.set("n", "<leader>ax", "<cmd>AspireStop<cr>", { desc = "Aspire: Stop AppHost" })
+vim.keymap.set("n", "<leader>ad", "<cmd>AspireDashboard<cr>", { desc = "Aspire: Open dashboard" })
+vim.keymap.set("n", "<leader>ar", "<cmd>AspireResources<cr>", { desc = "Aspire: List resources" })
+vim.keymap.set("n", "<leader>aa", "<cmd>AspireAttach<cr>", { desc = "Aspire: Attach to service" })
+vim.keymap.set("n", "<leader>aA", "<cmd>AspireAttachAll<cr>", { desc = "Aspire: Attach to all services" })
 ```
 
 ## macOS: netcoredbg needs the debugger entitlement
