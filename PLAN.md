@@ -107,7 +107,7 @@ Fixed by filtering on build-output **path** instead of OS parentage: every compi
 9. [x] `dap.lua`: `parse_ps_output` + `build_tree` pure functions with plenary specs.
 10. [x] `list_services` wired to real `ps`/`lsof`, cwd-based name resolution.
 11. [x] `health.lua` + `:AspireAttach` (single-service attach). Verified against a real Aspire sample app as far as the platform allows — see caveat below.
-12. `:AspireAttachAll`, verify manually with 2+ simultaneous attach sessions.
+12. [x] `:AspireAttachAll`, verified manually — 2 simultaneous sessions correctly created with distinct pids (same Apple Silicon breakpoint-hit caveat as milestone 11 applies to actual stops, not to session creation).
 
 ## Verification
 

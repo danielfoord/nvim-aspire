@@ -105,10 +105,15 @@ function M.attach()
   require("aspire.dap").pick_and_attach()
 end
 
+function M.attach_all()
+  require("aspire.dap").attach_all()
+end
+
 vim.api.nvim_create_user_command("AspireLaunch", M.launch, {})
 vim.api.nvim_create_user_command("AspireDashboard", M.dashboard, {})
 vim.api.nvim_create_user_command("AspireStop", M.stop, {})
 vim.api.nvim_create_user_command("AspireResources", M.resources, {})
 vim.api.nvim_create_user_command("AspireAttach", M.attach, {})
+vim.api.nvim_create_user_command("AspireAttachAll", M.attach_all, {})
 
 return M

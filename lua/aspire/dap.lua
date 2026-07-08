@@ -181,18 +181,27 @@ function M.attach(pid, opts)
   })
 end
 
---- Prompt the user to pick a running service and attach to it.
---- Backs `:AspireAttach`.
-function M.pick_and_attach()
+local function running_services()
   local runner = require("aspire.runner")
   if not runner.job then
     vim.notify("aspire: AppHost is not running — launch it first", vim.log.levels.WARN)
-    return
+    return nil
   end
 
   local services = M.list_services(runner.workspace_root, runner.apphost_dir)
   if #services == 0 then
     vim.notify("aspire: no attachable .NET service processes found", vim.log.levels.WARN)
+    return nil
+  end
+
+  return services
+end
+
+--- Prompt the user to pick a running service and attach to it.
+--- Backs `:AspireAttach`.
+function M.pick_and_attach()
+  local services = running_services()
+  if not services then
     return
   end
 
@@ -206,6 +215,18 @@ function M.pick_and_attach()
       M.attach(choice.pid, { name = choice.name })
     end
   end)
+end
+
+--- Attach to every discovered service, no prompt. Backs `:AspireAttachAll`.
+function M.attach_all()
+  local services = running_services()
+  if not services then
+    return
+  end
+
+  for _, s in ipairs(services) do
+    M.attach(s.pid, { name = s.name })
+  end
 end
 
 return M
