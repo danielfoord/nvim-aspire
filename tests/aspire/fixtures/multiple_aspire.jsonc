@@ -1,0 +1,17 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "aspire",
+      "request": "launch",
+      "name": "Aspire: Launch AppHost A",
+      "program": "${workspaceFolder}/A"
+    },
+    {
+      "type": "aspire",
+      "request": "launch",
+      "name": "Aspire: Launch AppHost B",
+      "program": "${workspaceFolder}/B"
+    }
+  ]
+}

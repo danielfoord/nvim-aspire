@@ -1,0 +1,19 @@
+{
+  // top-level launch config
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "aspire",
+      "request": "launch",
+      "name": "Aspire: Launch AppHost",
+      "program": "${workspaceFolder}",
+    },
+    {
+      /* a non-aspire config that should be ignored */
+      "type": "coreclr",
+      "request": "launch",
+      "name": "Launch API",
+      "program": "${workspaceFolder}/bin/api.dll",
+    },
+  ],
+}

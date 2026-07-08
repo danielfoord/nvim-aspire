@@ -1,0 +1,13 @@
+{
+  // note the dashboard url below contains "//" but is inside a string
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "aspire",
+      "request": "launch",
+      "name": "Aspire: Launch AppHost",
+      "program": "${workspaceFolder}",
+      "note": "see https://aspire.dev/docs for details" // trailing comment
+    }
+  ]
+}
