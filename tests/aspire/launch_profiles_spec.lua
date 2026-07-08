@@ -1,0 +1,77 @@
+local launch_profiles = require("aspire.launch_profiles")
+
+local fixtures_dir = vim.fn.fnamemodify(debug.getinfo(1, "S").source:sub(2), ":h") .. "/fixtures/launch_profiles"
+
+describe("launch_profiles.load", function()
+  it("reads Properties/launchSettings.json under the apphost dir", function()
+    local decoded, err = launch_profiles.load(fixtures_dir .. "/valid")
+    assert.is_nil(err)
+    assert.is_not_nil(decoded.profiles.http)
+    assert.is_not_nil(decoded.profiles.https)
+  end)
+
+  it("returns an error when launchSettings.json is missing", function()
+    local decoded, err = launch_profiles.load(fixtures_dir .. "/missing")
+    assert.is_nil(decoded)
+    assert.is_not_nil(err)
+  end)
+end)
+
+describe("launch_profiles.pick_profile", function()
+  it("defaults to the first Project profile in alphabetical order", function()
+    local decoded = launch_profiles.load(fixtures_dir .. "/valid")
+    local name, profile = launch_profiles.pick_profile(decoded.profiles)
+    assert.equals("http", name)
+    assert.equals("http://localhost:15888", profile.applicationUrl)
+  end)
+
+  it("skips non-Project profiles even when they sort first", function()
+    local decoded = launch_profiles.load(fixtures_dir .. "/mixed_command_names")
+    local name, profile = launch_profiles.pick_profile(decoded.profiles)
+    assert.equals("zzzWebProject", name)
+    assert.equals("Project", profile.commandName)
+  end)
+
+  it("picks an exact profile by name via opts.profile", function()
+    local decoded = launch_profiles.load(fixtures_dir .. "/valid")
+    local name, profile = launch_profiles.pick_profile(decoded.profiles, { profile = "https" })
+    assert.equals("https", name)
+    assert.equals("https://localhost:17039;http://localhost:15888", profile.applicationUrl)
+  end)
+
+  it("returns nil, nil when opts.profile does not exist", function()
+    local decoded = launch_profiles.load(fixtures_dir .. "/valid")
+    local name, profile = launch_profiles.pick_profile(decoded.profiles, { profile = "does-not-exist" })
+    assert.is_nil(name)
+    assert.is_nil(profile)
+  end)
+
+  it("returns nil, nil when no profile has commandName Project", function()
+    local name, profile = launch_profiles.pick_profile({
+      container = { commandName = "Executable" },
+    })
+    assert.is_nil(name)
+    assert.is_nil(profile)
+  end)
+end)
+
+describe("launch_profiles.to_env", function()
+  it("maps environmentVariables and applicationUrl", function()
+    local decoded = launch_profiles.load(fixtures_dir .. "/valid")
+    local _, profile = launch_profiles.pick_profile(decoded.profiles, { profile = "http" })
+    local env = launch_profiles.to_env(profile)
+    assert.equals("Development", env.ASPNETCORE_ENVIRONMENT)
+    assert.equals("Development", env.DOTNET_ENVIRONMENT)
+    assert.equals("http://localhost:15888", env.ASPNETCORE_URLS)
+  end)
+
+  it("omits ASPNETCORE_URLS when applicationUrl is absent", function()
+    local env = launch_profiles.to_env({ environmentVariables = { FOO = "bar" } })
+    assert.equals("bar", env.FOO)
+    assert.is_nil(env.ASPNETCORE_URLS)
+  end)
+
+  it("returns an empty table for a nil profile", function()
+    assert.same({}, launch_profiles.to_env(nil))
+  end)
+end)

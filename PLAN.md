@@ -91,10 +91,10 @@ Once `:AspireLaunch` has an AppHost running, the user needs to attach a debugger
 
 ## Milestones (build in this order)
 
-1. Scaffold repo structure + `doc/aspire.txt` + README stub, `git init`.
-2. `launch_json.lua` + `variables.lua` with plenary specs — parses fixture launch.json, resolves `${workspaceFolder}`.
-3. `discovery.lua` with plenary specs against fixture project trees.
-4. `launch_profiles.lua` with plenary specs against fixture `launchSettings.json`.
+1. [x] Scaffold repo structure + `doc/aspire.txt` + README stub, `git init`.
+2. [x] `launch_json.lua` + `variables.lua` with plenary specs — parses fixture launch.json, resolves `${workspaceFolder}`.
+3. [x] `discovery.lua` with plenary specs against fixture project trees.
+4. [x] `launch_profiles.lua` with plenary specs against fixture `launchSettings.json`.
 5. `runner.lua` + `init.lua` wiring — `:AspireLaunch` runs `dotnet run`, streams to log buffer. Verify manually against a real Aspire sample app.
 6. Dashboard URL detection + `:AspireDashboard`. Verify manually.
 7. `:AspireStop` with process-tree kill. Verify manually (`ps` before/after).

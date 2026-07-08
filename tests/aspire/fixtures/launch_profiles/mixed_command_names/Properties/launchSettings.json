@@ -1,0 +1,15 @@
+{
+  "profiles": {
+    "container": {
+      "commandName": "Executable",
+      "executablePath": "docker"
+    },
+    "zzzWebProject": {
+      "commandName": "Project",
+      "applicationUrl": "http://localhost:5080",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    }
+  }
+}
