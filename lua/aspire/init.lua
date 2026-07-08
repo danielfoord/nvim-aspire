@@ -93,7 +93,12 @@ function M.dashboard()
   require("aspire.dashboard").open()
 end
 
+function M.stop()
+  require("aspire.runner").stop()
+end
+
 vim.api.nvim_create_user_command("AspireLaunch", M.launch, {})
 vim.api.nvim_create_user_command("AspireDashboard", M.dashboard, {})
+vim.api.nvim_create_user_command("AspireStop", M.stop, {})
 
 return M

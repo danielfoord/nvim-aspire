@@ -53,7 +53,7 @@ No luarocks/rockspec needed for v1 — lazy.nvim/packer both work off the plain 
 - `run(apphost_path, profile_env)` — uses `vim.system({"dotnet","run","--project",apphost_path}, {cwd=..., env=profile_env, stdout=on_output, stderr=on_output})` (Neovim 0.10+ `vim.system`, not `jobstart` — simpler API, structured stdout/stderr callbacks, handle returned has `:wait()`/`.pid`, no need for the old jobstart callback dance). Store the handle in module state (`M.job`).
 - Output streamed into a dedicated scratch buffer (`filetype=aspirelog`), appended via `vim.schedule` from the callback to stay main-loop-safe.
 - Dashboard URL detected by pattern-matching each output line against something like `https?://[^%s]+/login%?t=[^%s]+` (Aspire prints a login URL with token) — store first match in `M.dashboard_url`, `vim.notify` it once found.
-- `stop()` — Aspire's `dotnet run` spawns a child process tree; killing just the `dotnet` pid can leave orphans. On the pid returned by `vim.system`, kill the process **group**: launch via `setsid`/detach isn't directly exposed by `vim.system`, so track `pid` and shell out to `kill -TERM -<pid>` if a negative-pid group kill is supported, otherwise fall back to `vim.system({"pkill","-P",tostring(pid)})` to also kill children before killing the parent. Document this as best-effort — full process-tree management is inherently platform-fiddly; acceptable for v1.
+- `stop()` — Aspire's `dotnet run` spawns a multi-level child process tree (confirmed empirically: `dotnet run` → `AppHost` binary → further child `dotnet` process). **Deviation from the original design**: a process-group kill (`kill -TERM -<pid>`) was tried and confirmed non-viable — `vim.system` doesn't put children in their own process group, they inherit Neovim's, so a negative-pid signal targets the wrong group entirely. Implemented instead as a recursive descendant walk (`pgrep -P` repeated per pid) collecting every descendant, then `vim.uv.kill()` on each pid individually (children first, root last). Self-contained in `runner.lua`; not shared with `dap.lua`'s later single-`ps`-call tree walk (different concern — that one also needs process metadata for the attach UI, not just pids).
 
 **`dashboard.lua`**
 - `open()` — `vim.ui.open(M.dashboard_url)` (built-in in 0.10+, falls back to `open`/`xdg-open` shell otherwise) if a URL was captured, else notify "not launched yet".
@@ -97,7 +97,7 @@ Once `:AspireLaunch` has an AppHost running, the user needs to attach a debugger
 4. [x] `launch_profiles.lua` with plenary specs against fixture `launchSettings.json`.
 5. [x] `runner.lua` + `init.lua` wiring — `:AspireLaunch` runs `dotnet run`, streams to log buffer. Verify manually against a real Aspire sample app.
 6. [x] Dashboard URL detection + `:AspireDashboard`. Verify manually.
-7. `:AspireStop` with process-tree kill. Verify manually (`ps` before/after).
+7. [x] `:AspireStop` with process-tree kill. Verify manually (`ps` before/after).
 8. `:AspireResources` stub.
 9. `dap.lua`: `parse_ps_output` + `build_tree` pure functions with plenary specs.
 10. `list_services` wired to real `ps`/`lsof`, cwd-based name resolution.

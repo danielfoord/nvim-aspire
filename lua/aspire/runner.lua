@@ -66,6 +66,45 @@ local function on_output(prefix)
   end
 end
 
+local function signal_pid(pid, sig)
+  local uv = vim.uv or vim.loop
+  pcall(uv.kill, pid, sig)
+end
+
+local function children_of(pid)
+  local ok, result = pcall(function()
+    return vim.system({ "pgrep", "-P", tostring(pid) }, { text = true }):wait()
+  end)
+  if not ok or not result or result.code ~= 0 or not result.stdout then
+    return {}
+  end
+
+  local pids = {}
+  for line in result.stdout:gmatch("[^\n]+") do
+    local n = tonumber(line)
+    if n then
+      pids[#pids + 1] = n
+    end
+  end
+  return pids
+end
+
+--- Collect every descendant pid of `root_pid`, deepest last.
+---@param root_pid integer
+---@return integer[]
+local function collect_descendants(root_pid)
+  local all = {}
+  local frontier = { root_pid }
+  while #frontier > 0 do
+    local pid = table.remove(frontier)
+    for _, child in ipairs(children_of(pid)) do
+      all[#all + 1] = child
+      frontier[#frontier + 1] = child
+    end
+  end
+  return all
+end
+
 --- Run the AppHost via `dotnet run --project <apphost_path>`.
 ---@param apphost_path string
 ---@param opts table|nil { cwd: string|nil, env: table<string,string>|nil }
@@ -91,10 +130,36 @@ function M.run(apphost_path, opts)
     vim.schedule(function()
       append_line(string.format("[aspire] process exited (code=%d)", obj.code))
       M.job = nil
+      M.dashboard_url = nil
     end)
   end)
 
   vim.notify("aspire: launching AppHost " .. apphost_path, vim.log.levels.INFO)
+end
+
+--- Stop the running AppHost and every child process it spawned.
+--- `dotnet run` doesn't put its children in their own process group
+--- (they inherit Neovim's), so a group kill (`kill -TERM -<pid>`) isn't
+--- viable — instead this walks the descendant tree via `pgrep -P` and
+--- signals each pid individually, children first.
+function M.stop()
+  if not M.job then
+    vim.notify("aspire: AppHost is not running", vim.log.levels.WARN)
+    return
+  end
+
+  local root_pid = M.job.pid
+  local descendants = collect_descendants(root_pid)
+
+  for i = #descendants, 1, -1 do
+    signal_pid(descendants[i], "sigterm")
+  end
+  signal_pid(root_pid, "sigterm")
+
+  append_line(
+    string.format("[aspire] stop requested (root pid %d, %d child process(es))", root_pid, #descendants)
+  )
+  vim.notify("aspire: stopping AppHost", vim.log.levels.INFO)
 end
 
 --- Open (or focus) the log buffer in the current window.
