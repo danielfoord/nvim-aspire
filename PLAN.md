@@ -99,7 +99,7 @@ Once `:AspireLaunch` has an AppHost running, the user needs to attach a debugger
 6. [x] Dashboard URL detection + `:AspireDashboard`. Verify manually.
 7. [x] `:AspireStop` with process-tree kill. Verify manually (`ps` before/after).
 8. [x] `:AspireResources` stub.
-9. `dap.lua`: `parse_ps_output` + `build_tree` pure functions with plenary specs.
+9. [x] `dap.lua`: `parse_ps_output` + `build_tree` pure functions with plenary specs.
 10. `list_services` wired to real `ps`/`lsof`, cwd-based name resolution.
 11. `health.lua` + `:AspireAttach` (single-service attach), verify manually against a real Aspire sample app — confirm breakpoint hits.
 12. `:AspireAttachAll`, verify manually with 2+ simultaneous attach sessions.
