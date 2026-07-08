@@ -3,6 +3,8 @@ local M = {}
 M.job = nil -- vim.SystemObj handle for the running AppHost, nil when stopped
 M.buf = nil -- log buffer number
 M.dashboard_url = nil -- set once the AppHost prints its dashboard login URL
+M.workspace_root = nil -- set while the AppHost is running, for aspire.dap's service discovery
+M.apphost_dir = nil -- ditto: directory containing the AppHost .csproj
 
 local DASHBOARD_URL_PATTERN = "https?://[^%s]+/login%?t=[^%s]+"
 
@@ -107,7 +109,7 @@ end
 
 --- Run the AppHost via `dotnet run --project <apphost_path>`.
 ---@param apphost_path string
----@param opts table|nil { cwd: string|nil, env: table<string,string>|nil }
+---@param opts table|nil { cwd: string|nil, env: table<string,string>|nil, workspace_root: string|nil }
 function M.run(apphost_path, opts)
   opts = opts or {}
 
@@ -117,6 +119,8 @@ function M.run(apphost_path, opts)
   end
 
   M.dashboard_url = nil
+  M.workspace_root = opts.workspace_root
+  M.apphost_dir = opts.cwd
   ensure_log_buffer()
   append_line("[aspire] dotnet run --project " .. apphost_path)
 
@@ -131,6 +135,8 @@ function M.run(apphost_path, opts)
       append_line(string.format("[aspire] process exited (code=%d)", obj.code))
       M.job = nil
       M.dashboard_url = nil
+      M.workspace_root = nil
+      M.apphost_dir = nil
     end)
   end)
 

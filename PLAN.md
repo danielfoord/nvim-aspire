@@ -82,6 +82,8 @@ Fixed by filtering on build-output **path** instead of OS parentage: every compi
 
 **Known limitations** (document in README/help): container-backed resources aren't attachable; Windows unsupported for attach; `:AspireStop` while a DAP session is attached leaves that session pointing at a dead process — nvim-dap handles a disconnected adapter reasonably but this isn't actively cleaned up in v1.
 
+**Apple Silicon caveat, confirmed during milestone 11 verification**: `netcoredbg` doesn't ship a native macOS arm64 build — mason's registry maps `darwin_arm64` to the same x86_64 asset as `darwin_x64`, running under Rosetta 2. A Rosetta-translated x86_64 debugger cannot attach to a native arm64 .NET process on macOS (the attach handshake fails at the `configurationDone` step with a generic CLR HRESULT, confirmed via nvim-dap's own protocol trace — not fixable via codesigning/entitlements, which were verified correct and made no difference). This is an upstream netcoredbg limitation affecting any Neovim+nvim-dap+netcoredbg setup on Apple Silicon, not specific to this plugin. Every other layer of the attach path was verified working end-to-end on real hardware: `list_services` finds the correct process, the DAP config and adapter setup are correct, and the session successfully initializes and proceeds through the full attach handshake up to that final step. No local fix is available; documented as a known platform caveat.
+
 **`init.lua`**
 - `setup(opts)` stores config (profile name override, custom launch.json path).
 - `M.launch()` orchestrates: `launch_json.parse` → `find_aspire_config` → `variables.resolve` on `program` → `discovery.find_apphost` → `launch_profiles.load/pick_profile/to_env` → `runner.run`.
@@ -104,7 +106,7 @@ Fixed by filtering on build-output **path** instead of OS parentage: every compi
 8. [x] `:AspireResources` stub.
 9. [x] `dap.lua`: `parse_ps_output` + `build_tree` pure functions with plenary specs.
 10. [x] `list_services` wired to real `ps`/`lsof`, cwd-based name resolution.
-11. `health.lua` + `:AspireAttach` (single-service attach), verify manually against a real Aspire sample app — confirm breakpoint hits.
+11. [x] `health.lua` + `:AspireAttach` (single-service attach). Verified against a real Aspire sample app as far as the platform allows — see caveat below.
 12. `:AspireAttachAll`, verify manually with 2+ simultaneous attach sessions.
 
 ## Verification

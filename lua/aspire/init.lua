@@ -10,7 +10,7 @@ local function workspace_root()
   return vim.fn.getcwd()
 end
 
-local function launch_apphost(apphost_path)
+local function launch_apphost(root, apphost_path)
   local launch_profiles = require("aspire.launch_profiles")
   local runner = require("aspire.runner")
 
@@ -25,7 +25,7 @@ local function launch_apphost(apphost_path)
     end
   end
 
-  runner.run(apphost_path, { cwd = apphost_dir, env = env })
+  runner.run(apphost_path, { cwd = apphost_dir, env = env, workspace_root = root })
 end
 
 local function resolve_and_launch(root, cfg)
@@ -36,7 +36,7 @@ local function resolve_and_launch(root, cfg)
   local apphost_path, candidates = discovery.find_apphost(root, program)
 
   if apphost_path then
-    launch_apphost(apphost_path)
+    launch_apphost(root, apphost_path)
     return
   end
 
@@ -49,7 +49,7 @@ local function resolve_and_launch(root, cfg)
     prompt = "Select Aspire AppHost project",
   }, function(choice)
     if choice then
-      launch_apphost(choice)
+      launch_apphost(root, choice)
     end
   end)
 end
@@ -101,9 +101,14 @@ function M.resources()
   require("aspire.dashboard").resources()
 end
 
+function M.attach()
+  require("aspire.dap").pick_and_attach()
+end
+
 vim.api.nvim_create_user_command("AspireLaunch", M.launch, {})
 vim.api.nvim_create_user_command("AspireDashboard", M.dashboard, {})
 vim.api.nvim_create_user_command("AspireStop", M.stop, {})
 vim.api.nvim_create_user_command("AspireResources", M.resources, {})
+vim.api.nvim_create_user_command("AspireAttach", M.attach, {})
 
 return M

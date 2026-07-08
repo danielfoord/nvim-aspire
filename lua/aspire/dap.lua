@@ -147,4 +147,65 @@ function M.list_services(workspace_root, apphost_dir)
   return result
 end
 
+--- Attach nvim-dap's coreclr adapter to a running .NET process.
+---@param pid integer
+---@param opts table|nil { name: string|nil }
+function M.attach(pid, opts)
+  opts = opts or {}
+
+  local ok, dap_plugin = pcall(require, "dap")
+  if not ok then
+    vim.notify("aspire: nvim-dap is not installed — required for :AspireAttach", vim.log.levels.ERROR)
+    return
+  end
+
+  if vim.fn.executable("netcoredbg") ~= 1 then
+    vim.notify("aspire: netcoredbg not found on PATH — required for :AspireAttach", vim.log.levels.ERROR)
+    return
+  end
+
+  if not dap_plugin.adapters.coreclr then
+    dap_plugin.adapters.coreclr = {
+      type = "executable",
+      command = vim.fn.exepath("netcoredbg"),
+      args = { "--interpreter=vscode" },
+    }
+  end
+
+  dap_plugin.run({
+    type = "coreclr",
+    request = "attach",
+    processId = pid,
+    name = opts.name or ("pid " .. pid),
+    justMyCode = false,
+  })
+end
+
+--- Prompt the user to pick a running service and attach to it.
+--- Backs `:AspireAttach`.
+function M.pick_and_attach()
+  local runner = require("aspire.runner")
+  if not runner.job then
+    vim.notify("aspire: AppHost is not running — launch it first", vim.log.levels.WARN)
+    return
+  end
+
+  local services = M.list_services(runner.workspace_root, runner.apphost_dir)
+  if #services == 0 then
+    vim.notify("aspire: no attachable .NET service processes found", vim.log.levels.WARN)
+    return
+  end
+
+  vim.ui.select(services, {
+    prompt = "Select a service to attach to",
+    format_item = function(s)
+      return string.format("%s (pid %d)", s.name, s.pid)
+    end,
+  }, function(choice)
+    if choice then
+      M.attach(choice.pid, { name = choice.name })
+    end
+  end)
+end
+
 return M
