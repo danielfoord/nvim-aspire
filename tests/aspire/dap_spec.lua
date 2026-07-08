@@ -23,6 +23,24 @@ local function sorted(t)
   return copy
 end
 
+-- Captured verbatim from `ps -Ao pid,ppid,command` while a real
+-- `dotnet new aspire-starter` app was running: the AppHost wrapper
+-- (20486) spawns the AppHost orchestrator binary (20781), which starts
+-- Aspire's DCP controller (20876), which spawns the dashboard (20886)
+-- and one "dotnet run --no-build" wrapper per service (20884, 20938),
+-- each of which execs the real compiled service binary (20900, 20979).
+local REAL_ASPIRE_PS_OUTPUT = [[
+  PID  PPID COMMAND
+20486 20456 dotnet run --project /repo/Sample.AppHost/Sample.AppHost.csproj
+20781 20486 /repo/Sample.AppHost/bin/Debug/net9.0/Sample.AppHost
+20876 20833 /Users/daniel/.nuget/packages/aspire.hosting.orchestration.osx-arm64/9.3.1/tools/ext/dcpctrl run-controllers --kubeconfig /tmp/aspire.zZ7ZLf/kubeconfig --monitor 20833
+20884 20876 dotnet run --no-build --project /repo/Sample.ApiService/Sample.ApiService.csproj -c Debug --no-launch-profile
+20886 20876 dotnet /Users/daniel/.nuget/packages/aspire.dashboard.sdk.osx-arm64/9.3.1/tools/Aspire.Dashboard.dll
+20900 20884 /repo/Sample.ApiService/bin/Debug/net9.0/Sample.ApiService
+20938 20876 dotnet run --no-build --project /repo/Sample.Web/Sample.Web.csproj -c Debug --no-launch-profile
+20979 20938 /repo/Sample.Web/bin/Debug/net9.0/Sample.Web
+]]
+
 describe("dap.parse_ps_output", function()
   it("parses pid, ppid, and command from each row", function()
     local entries = dap.parse_ps_output(PS_OUTPUT)
@@ -79,5 +97,48 @@ describe("dap.build_tree", function()
   it("returns an empty list when root_pid is not in entries", function()
     local entries = dap.parse_ps_output(PS_OUTPUT)
     assert.same({}, dap.build_tree(entries, 424242))
+  end)
+end)
+
+describe("dap.filter_services (real Aspire process tree)", function()
+  local entries = dap.parse_ps_output(REAL_ASPIRE_PS_OUTPUT)
+  local workspace_root = "/repo"
+  local apphost_dir = "/repo/Sample.AppHost"
+
+  it("finds exactly the two real service binaries", function()
+    local services = dap.filter_services(entries, workspace_root, apphost_dir)
+    local pids = {}
+    for _, s in ipairs(services) do
+      pids[#pids + 1] = s.pid
+    end
+    assert.same({ 20900, 20979 }, sorted(pids))
+  end)
+
+  it("excludes the AppHost orchestrator binary itself", function()
+    local services = dap.filter_services(entries, workspace_root, apphost_dir)
+    for _, s in ipairs(services) do
+      assert.is_not.equal(20781, s.pid)
+    end
+  end)
+
+  it("excludes dotnet run wrapper processes and the DCP controller", function()
+    local services = dap.filter_services(entries, workspace_root, apphost_dir)
+    for _, s in ipairs(services) do
+      assert.is_not.equal(20884, s.pid)
+      assert.is_not.equal(20938, s.pid)
+      assert.is_not.equal(20876, s.pid)
+    end
+  end)
+
+  it("excludes the Aspire dashboard process", function()
+    local services = dap.filter_services(entries, workspace_root, apphost_dir)
+    for _, s in ipairs(services) do
+      assert.is_not.equal(20886, s.pid)
+    end
+  end)
+
+  it("excludes processes outside workspace_root", function()
+    local services = dap.filter_services(entries, "/some/other/root", apphost_dir)
+    assert.same({}, services)
   end)
 end)

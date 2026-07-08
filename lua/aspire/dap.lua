@@ -43,4 +43,108 @@ function M.build_tree(entries, root_pid)
   return descendants
 end
 
+-- Compiled .NET binaries (both self-contained apphost-style bare
+-- executables and framework-dependent .dll invocations) sit in their
+-- project's normal build output directory: ".../bin/<Config>/net<ver>/<Name>".
+-- Empirically, this shape uniquely identifies real service/AppHost
+-- binaries — "dotnet run --project ..." wrapper processes and Aspire's
+-- own dashboard/DCP controller processes never match it.
+local BIN_OUTPUT_PATTERN = "/bin/[^/]+/net[%d%.]+/[^/]+$"
+
+local function looks_like_service_binary(command)
+  return command:match(BIN_OUTPUT_PATTERN) ~= nil
+end
+
+--- Narrow a parsed ps listing down to attachable .NET service binaries
+--- under `workspace_root`, excluding the AppHost's own binary (anything
+--- under `apphost_dir`).
+---
+--- This does NOT walk the OS process tree from the AppHost's pid.
+--- Empirically, Aspire's DCP layer daemonizes (`dcp start-apiserver`
+--- reparents to pid 1, only linked to the AppHost via a `--monitor
+--- <pid>` command-line argument, not real OS parentage) when
+--- orchestrating child processes, so the real service processes are
+--- NOT reachable via `build_tree` from the AppHost's pid at all —
+--- confirmed against a live AppHost where the orchestrator binary had
+--- zero real OS-level children. Filtering by build-output path instead
+--- sidesteps the broken tree entirely.
+---@param entries { pid: integer, ppid: integer, command: string }[]
+---@param workspace_root string
+---@param apphost_dir string directory containing the AppHost .csproj, excluded from results
+---@return { pid: integer, ppid: integer, command: string }[]
+function M.filter_services(entries, workspace_root, apphost_dir)
+  local services = {}
+  for _, e in ipairs(entries) do
+    if
+      looks_like_service_binary(e.command)
+      and e.command:find(workspace_root, 1, true) == 1
+      and e.command:find(apphost_dir, 1, true) ~= 1
+    then
+      services[#services + 1] = e
+    end
+  end
+  return services
+end
+
+local function shell_ps_output()
+  local ok, result = pcall(function()
+    return vim.system({ "ps", "-Ao", "pid,ppid,command" }, { text = true }):wait()
+  end)
+  if not ok or not result or result.code ~= 0 then
+    return ""
+  end
+  return result.stdout or ""
+end
+
+--- Resolve a display name for `pid` via its cwd, falling back to
+--- "pid <n>" if the lookup fails (e.g. the process already exited, or
+--- we're on an unsupported platform — this is macOS/Linux only).
+---@param pid integer
+---@return string
+function M.resolve_name(pid)
+  local cwd
+
+  if vim.fn.has("mac") == 1 then
+    local ok, result = pcall(function()
+      return vim.system({ "lsof", "-a", "-d", "cwd", "-p", tostring(pid) }, { text = true }):wait()
+    end)
+    if ok and result and result.code == 0 and result.stdout then
+      local last_line
+      for line in result.stdout:gmatch("[^\n]+") do
+        last_line = line
+      end
+      if last_line then
+        cwd = last_line:match("(%S+)%s*$")
+      end
+    end
+  else
+    local uv = vim.uv or vim.loop
+    local ok, link = pcall(uv.fs_readlink, "/proc/" .. pid .. "/cwd")
+    if ok and link then
+      cwd = link
+    end
+  end
+
+  if cwd then
+    return vim.fn.fnamemodify(cwd, ":t")
+  end
+  return "pid " .. pid
+end
+
+--- List attachable .NET service processes belonging to the AppHost at
+--- `apphost_dir`, under `workspace_root`.
+---@param workspace_root string
+---@param apphost_dir string directory containing the AppHost .csproj
+---@return { name: string, pid: integer, cmd: string }[]
+function M.list_services(workspace_root, apphost_dir)
+  local entries = M.parse_ps_output(shell_ps_output())
+  local services = M.filter_services(entries, workspace_root, apphost_dir)
+
+  local result = {}
+  for _, e in ipairs(services) do
+    result[#result + 1] = { name = M.resolve_name(e.pid), pid = e.pid, cmd = e.command }
+  end
+  return result
+end
+
 return M
