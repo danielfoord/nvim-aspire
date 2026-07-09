@@ -89,6 +89,10 @@ function M.launch()
   end)
 end
 
+function M.log()
+  require("aspire.runner").open_log()
+end
+
 function M.dashboard()
   require("aspire.dashboard").open()
 end
@@ -110,6 +114,7 @@ function M.attach_all()
 end
 
 vim.api.nvim_create_user_command("AspireLaunch", M.launch, {})
+vim.api.nvim_create_user_command("AspireLog", M.log, {})
 vim.api.nvim_create_user_command("AspireDashboard", M.dashboard, {})
 vim.api.nvim_create_user_command("AspireStop", M.stop, {})
 vim.api.nvim_create_user_command("AspireResources", M.resources, {})

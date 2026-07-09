@@ -33,6 +33,10 @@ the AppHost spawns.
                                                                   *:AspireStop*
 :AspireStop          Stop the running AppHost and its child processes.
 
+                                                                   *:AspireLog*
+:AspireLog           Open the AppHost's output log buffer (build output,
+                     `dotnet run` stdout/stderr).
+
                                                              *:AspireDashboard*
 :AspireDashboard     Open the Aspire dashboard URL.
 

@@ -42,6 +42,7 @@ Run `:checkhealth aspire` after installing to confirm `dotnet`, `netcoredbg`, an
 
 - `:AspireLaunch` — parse `.vscode/launch.json`, find the AppHost, run it, stream output to a log buffer, surface the dashboard URL.
 - `:AspireStop` — stop the running AppHost and its child processes.
+- `:AspireLog` — open the AppHost's output log buffer (build output, `dotnet run` stdout/stderr) — handy while waiting for services to come up.
 - `:AspireDashboard` — open the Aspire dashboard URL.
 - `:AspireResources` — list running resources (stub for now).
 - `:AspireAttach` — attach `nvim-dap` to a running .NET service.
@@ -60,6 +61,7 @@ Not set by default — add whichever of these you want, e.g. under a `<leader>a`
 ```lua
 vim.keymap.set("n", "<leader>al", "<cmd>AspireLaunch<cr>", { desc = "Aspire: Launch AppHost" })
 vim.keymap.set("n", "<leader>ax", "<cmd>AspireStop<cr>", { desc = "Aspire: Stop AppHost" })
+vim.keymap.set("n", "<leader>ao", "<cmd>AspireLog<cr>", { desc = "Aspire: Open log" })
 vim.keymap.set("n", "<leader>ad", "<cmd>AspireDashboard<cr>", { desc = "Aspire: Open dashboard" })
 vim.keymap.set("n", "<leader>ar", "<cmd>AspireResources<cr>", { desc = "Aspire: List resources" })
 vim.keymap.set("n", "<leader>aa", "<cmd>AspireAttach<cr>", { desc = "Aspire: Attach to service" })
