@@ -23,6 +23,14 @@ function M.check()
   else
     health.warn("nvim-dap is not installed — :AspireAttach/:AspireAttachAll will not work")
   end
+
+  if vim.fn.has("win32") == 1 then
+    if vim.fn.executable("powershell") == 1 then
+      health.ok("powershell found on PATH (required for :AspireAttach service discovery on Windows)")
+    else
+      health.warn("powershell not found on PATH — :AspireAttach/:AspireAttachAll will not work on Windows")
+    end
+  end
 end
 
 return M

@@ -97,14 +97,25 @@ end
 ---@param entries { pid: integer, ppid: integer, command: string }[]
 ---@param workspace_root string
 ---@param apphost_dir string directory containing the AppHost .csproj, excluded from results
+---@param opts table|nil { case_insensitive: boolean|nil } pass true on Windows, where the same path can be reported with different casing by different APIs
 ---@return { pid: integer, ppid: integer, command: string }[]
-function M.filter_services(entries, workspace_root, apphost_dir)
-  local norm_root = normalize_sep(workspace_root)
-  local norm_apphost = normalize_sep(apphost_dir)
+function M.filter_services(entries, workspace_root, apphost_dir, opts)
+  opts = opts or {}
+
+  local function comparison_key(path)
+    local normalized = normalize_sep(path)
+    if opts.case_insensitive then
+      normalized = normalized:lower()
+    end
+    return normalized
+  end
+
+  local norm_root = comparison_key(workspace_root)
+  local norm_apphost = comparison_key(apphost_dir)
 
   local services = {}
   for _, e in ipairs(entries) do
-    local norm_cmd = normalize_sep(e.command)
+    local norm_cmd = comparison_key(e.command)
     if
       looks_like_service_binary(e.command)
       and norm_cmd:find(norm_root, 1, true) == 1
@@ -116,22 +127,65 @@ function M.filter_services(entries, workspace_root, apphost_dir)
   return services
 end
 
+local WINDOWS_PROCESS_LISTING_SCRIPT = [[
+Get-CimInstance Win32_Process | ForEach-Object { "$($_.ProcessId)|$($_.ParentProcessId)|$($_.CommandLine)" }
+]]
+
+--- Run the process-listing PowerShell script from a temp .ps1 file
+--- rather than an inline `-Command "..."` string. The script contains
+--- nested double quotes and `$()` subexpressions that aren't reliable
+--- to pass as a single argv element through Unix-argv-to-Windows-
+--- command-line translation; a file path is a much simpler argument
+--- to quote correctly. `-ExecutionPolicy Bypass` avoids the script
+--- being blocked by a restrictive execution policy (an inline
+--- `-Command` string isn't subject to that policy, so switching to
+--- `-File` needs this to keep the same behavior).
+---@return vim.SystemCompleted|nil
+local function run_windows_process_listing()
+  local script_path = vim.fn.tempname() .. ".ps1"
+  local ok_write = pcall(vim.fn.writefile, vim.split(WINDOWS_PROCESS_LISTING_SCRIPT, "\n"), script_path)
+  if not ok_write then
+    return nil
+  end
+
+  local ok, result = pcall(function()
+    return vim.system({
+      "powershell",
+      "-NoProfile",
+      "-NonInteractive",
+      "-ExecutionPolicy",
+      "Bypass",
+      "-File",
+      script_path,
+    }, { text = true }):wait()
+  end)
+
+  pcall(vim.fn.delete, script_path)
+
+  if not ok then
+    return nil
+  end
+  return result
+end
+
 --- Shell out to list every running process as { pid, ppid, command }
 --- entries: `ps -Ao pid,ppid,command` on macOS/Linux, a PowerShell
 --- Win32_Process query on Windows.
 ---@return { pid: integer, ppid: integer, command: string }[]
 local function list_processes()
   if vim.fn.has("win32") == 1 then
-    local ok, result = pcall(function()
-      return vim.system({
-        "powershell",
-        "-NoProfile",
-        "-NonInteractive",
-        "-Command",
-        "Get-CimInstance Win32_Process | ForEach-Object { \"$($_.ProcessId)|$($_.ParentProcessId)|$($_.CommandLine)\" }",
-      }, { text = true }):wait()
-    end)
-    if not ok or not result or result.code ~= 0 then
+    local result = run_windows_process_listing()
+    if not result then
+      vim.notify("aspire: failed to run the PowerShell process listing (is powershell on PATH?)", vim.log.levels.WARN)
+      return {}
+    end
+    if result.code ~= 0 then
+      vim.notify(
+        "aspire: PowerShell process listing exited with code "
+          .. tostring(result.code)
+          .. (result.stderr and result.stderr ~= "" and (": " .. result.stderr) or ""),
+        vim.log.levels.WARN
+      )
       return {}
     end
     return M.parse_powershell_output(result.stdout or "")
@@ -168,7 +222,7 @@ end
 ---@return { name: string, pid: integer, cmd: string }[]
 function M.list_services(workspace_root, apphost_dir)
   local entries = list_processes()
-  local services = M.filter_services(entries, workspace_root, apphost_dir)
+  local services = M.filter_services(entries, workspace_root, apphost_dir, { case_insensitive = vim.fn.has("win32") == 1 })
 
   local result = {}
   for _, e in ipairs(services) do

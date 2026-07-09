@@ -154,6 +154,24 @@ describe("dap.filter_services (Windows-style paths)", function()
       assert.is_not.equal(20781, s.pid)
     end
   end)
+
+  it("matches despite a case mismatch when case_insensitive is set (Windows)", function()
+    -- Windows paths are case-insensitive, but different APIs can report
+    -- the same path with different casing (e.g. drive letter case).
+    local lowercase_root = [[c:\REPO]]
+    local services = dap.filter_services(entries, lowercase_root, apphost_dir, { case_insensitive = true })
+    local pids = {}
+    for _, s in ipairs(services) do
+      pids[#pids + 1] = s.pid
+    end
+    assert.same({ 20900, 20979 }, sorted(pids))
+  end)
+
+  it("fails to match on a case mismatch when case_insensitive is not set", function()
+    local lowercase_root = [[c:\REPO]]
+    local services = dap.filter_services(entries, lowercase_root, apphost_dir)
+    assert.same({}, services)
+  end)
 end)
 
 describe("dap.resolve_name", function()
