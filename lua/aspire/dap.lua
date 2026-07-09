@@ -79,6 +79,21 @@ local function normalize_sep(path)
   return (path:gsub("\\", "/"))
 end
 
+--- Pull the executable path out of a raw command line. Windows'
+--- `Win32_Process.CommandLine` quotes the exe path and may append
+--- arguments after it (e.g. `"C:\...\Foo.exe" --console`); macOS/Linux
+--- `ps` output is normally unquoted with no wrapping quotes at all.
+--- Handles both so downstream matching only ever sees the bare path.
+---@param command string
+---@return string
+function M.extract_exe_path(command)
+  local quoted = command:match('^"([^"]*)"')
+  if quoted then
+    return quoted
+  end
+  return command:match("^(%S+)") or command
+end
+
 --- Narrow a parsed process listing down to attachable .NET service
 --- binaries under `workspace_root`, excluding the AppHost's own binary
 --- (anything under `apphost_dir`). Path separators are normalized
@@ -115,9 +130,10 @@ function M.filter_services(entries, workspace_root, apphost_dir, opts)
 
   local services = {}
   for _, e in ipairs(entries) do
-    local norm_cmd = comparison_key(e.command)
+    local exe_path = M.extract_exe_path(e.command)
+    local norm_cmd = comparison_key(exe_path)
     if
-      looks_like_service_binary(e.command)
+      looks_like_service_binary(exe_path)
       and norm_cmd:find(norm_root, 1, true) == 1
       and norm_cmd:find(norm_apphost, 1, true) ~= 1
     then
@@ -208,7 +224,8 @@ end
 ---@param command string
 ---@return string
 function M.resolve_name(command)
-  local project_dir = command:match("^(.*)[/\\]bin[/\\][^/\\]+[/\\]net[%d%.]+[/\\][^/\\]+$")
+  local exe_path = M.extract_exe_path(command)
+  local project_dir = exe_path:match("^(.*)[/\\]bin[/\\][^/\\]+[/\\]net[%d%.]+[/\\][^/\\]+$")
   if project_dir then
     return vim.fn.fnamemodify(normalize_sep(project_dir), ":t")
   end
@@ -231,6 +248,29 @@ function M.list_services(workspace_root, apphost_dir)
   return result
 end
 
+--- Resolve the real `netcoredbg` binary to spawn. On Windows, mason
+--- exposes `netcoredbg` via a `.cmd` shim on PATH (`mason/bin/*.cmd`);
+--- spawning that shim as a DAP adapter wraps it in `cmd.exe`, whose
+--- stdio indirection stalls the interpreter-mode JSON-RPC protocol —
+--- confirmed empirically: the adapter process starts but never responds
+--- to the `initialize` request, even after 45s, while pointing directly
+--- at the real `.exe` responds almost instantly. mason-registry knows
+--- the real install path (mason-nvim-dap's own `coreclr.lua` resolves
+--- it the same way), so prefer that and only fall back to PATH lookup
+--- when mason isn't installed.
+---@return string|nil
+local function resolve_netcoredbg_command()
+  local ok_registry, registry = pcall(require, "mason-registry")
+  if ok_registry and registry.is_installed("netcoredbg") then
+    local install_path = registry.get_package("netcoredbg"):get_install_path()
+    local exe = install_path .. "/netcoredbg/netcoredbg" .. (vim.fn.has("win32") == 1 and ".exe" or "")
+    if vim.fn.filereadable(exe) == 1 then
+      return exe
+    end
+  end
+  return vim.fn.exepath("netcoredbg")
+end
+
 --- Attach nvim-dap's coreclr adapter to a running .NET process.
 ---@param pid integer
 ---@param opts table|nil { name: string|nil }
@@ -251,7 +291,7 @@ function M.attach(pid, opts)
   if not dap_plugin.adapters.coreclr then
     dap_plugin.adapters.coreclr = {
       type = "executable",
-      command = vim.fn.exepath("netcoredbg"),
+      command = resolve_netcoredbg_command(),
       args = { "--interpreter=vscode" },
     }
   end

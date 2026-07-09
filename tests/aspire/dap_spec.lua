@@ -191,6 +191,59 @@ describe("dap.resolve_name", function()
   end)
 end)
 
+-- Captured verbatim from a live Windows Win32_Process listing:
+-- Win32_Process.CommandLine quotes the exe path, and processes started
+-- with extra args (e.g. --console) have them trailing after the closing
+-- quote.
+local WINDOWS_QUOTED_PS_OUTPUT = table.concat({
+  [[31784|26112|"C:\Program Files\dotnet\dotnet.EXE" run --project D:\repo\Sample.AppHost\Sample.AppHost.csproj]],
+  [[35056|31784|"D:\repo\Sample.AppHost\bin\Debug\net8.0\Sample.AppHost.exe"]],
+  [[34328|26924|"D:\repo\Sample.ApiService\bin\Debug\net8.0\Sample.ApiService.exe"]],
+  [[12876|32688|"D:\repo\Sample.Worker\bin\Debug\net8.0\Sample.Worker.exe"  --console]],
+}, "\r\n")
+
+describe("dap.filter_services (Windows, quoted CommandLine)", function()
+  local entries = dap.parse_powershell_output(WINDOWS_QUOTED_PS_OUTPUT)
+  local workspace_root = [[D:\repo]]
+  local apphost_dir = [[D:\repo\Sample.AppHost]]
+
+  it("finds quoted service binaries, including one with trailing args", function()
+    local services = dap.filter_services(entries, workspace_root, apphost_dir, { case_insensitive = true })
+    local pids = {}
+    for _, s in ipairs(services) do
+      pids[#pids + 1] = s.pid
+    end
+    assert.same({ 12876, 34328 }, sorted(pids))
+  end)
+
+  it("excludes the quoted AppHost binary itself", function()
+    local services = dap.filter_services(entries, workspace_root, apphost_dir, { case_insensitive = true })
+    for _, s in ipairs(services) do
+      assert.is_not.equal(35056, s.pid)
+    end
+  end)
+end)
+
+describe("dap.extract_exe_path", function()
+  it("strips wrapping quotes", function()
+    assert.equals([[D:\repo\Foo.exe]], dap.extract_exe_path([["D:\repo\Foo.exe"]]))
+  end)
+
+  it("strips wrapping quotes and drops trailing args", function()
+    assert.equals([[D:\repo\Foo.exe]], dap.extract_exe_path([["D:\repo\Foo.exe"  --console]]))
+  end)
+
+  it("passes unquoted commands through to the first whitespace-delimited token", function()
+    assert.equals([[/repo/Foo]], dap.extract_exe_path([[/repo/Foo]]))
+  end)
+end)
+
+describe("dap.resolve_name (quoted Windows command)", function()
+  it("derives the project name despite wrapping quotes and trailing args", function()
+    assert.equals("Sample.Worker", dap.resolve_name([["D:\repo\Sample.Worker\bin\Debug\net8.0\Sample.Worker.exe"  --console]]))
+  end)
+end)
+
 describe("dap.filter_services (real Aspire process tree)", function()
   local entries = dap.parse_ps_output(REAL_ASPIRE_PS_OUTPUT)
   local workspace_root = "/repo"
