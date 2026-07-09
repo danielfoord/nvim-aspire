@@ -97,5 +97,5 @@ which should print both entitlements listed above. This only needs doing once pe
 ## Known limitations
 
 - Container-backed resources (Redis, Postgres, etc.) aren't attachable — only plain `Project` resources.
-- Windows is unsupported for the DAP attach layer (`:AspireAttach`/`:AspireAttachAll`).
+- On Windows, `:AspireStop` signals the AppHost process itself but doesn't discover/kill its child service processes (its descendant-kill still relies on `pgrep`, which Windows doesn't have) — you may need to end those manually via Task Manager.
 - **Apple Silicon**: `netcoredbg` doesn't ship a native macOS arm64 build, so Neovim plugin managers install the x86_64 build under Rosetta 2. A Rosetta-translated debugger cannot attach to a native arm64 .NET process — `:AspireAttach` will fail during the attach handshake on Apple Silicon Macs even with the entitlement fix above. This is an upstream `netcoredbg` limitation, not specific to this plugin.

@@ -100,6 +100,79 @@ describe("dap.build_tree", function()
   end)
 end)
 
+-- The same real Aspire process tree, as it would be reported by
+-- Win32_Process.CommandLine on Windows: backslash separators, .exe
+-- extensions on compiled binaries, no leading slash (drive letter).
+local WINDOWS_ASPIRE_PS_OUTPUT = table.concat({
+  [[20486|20456|dotnet run --project C:\repo\Sample.AppHost\Sample.AppHost.csproj]],
+  [[20781|20486|C:\repo\Sample.AppHost\bin\Debug\net9.0\Sample.AppHost.exe]],
+  [[20884|20876|dotnet run --no-build --project C:\repo\Sample.ApiService\Sample.ApiService.csproj -c Debug --no-launch-profile]],
+  [[20900|20884|C:\repo\Sample.ApiService\bin\Debug\net9.0\Sample.ApiService.exe]],
+  [[20938|20876|dotnet run --no-build --project C:\repo\Sample.Web\Sample.Web.csproj -c Debug --no-launch-profile]],
+  [[20979|20938|C:\repo\Sample.Web\bin\Debug\net9.0\Sample.Web.exe]],
+}, "\r\n")
+
+describe("dap.parse_powershell_output", function()
+  it("parses pid, ppid, and command from pipe-delimited lines", function()
+    local entries = dap.parse_powershell_output(WINDOWS_ASPIRE_PS_OUTPUT)
+    local by_pid = {}
+    for _, e in ipairs(entries) do
+      by_pid[e.pid] = e
+    end
+
+    assert.equals(20456, by_pid[20486].ppid)
+    assert.equals([[dotnet run --project C:\repo\Sample.AppHost\Sample.AppHost.csproj]], by_pid[20486].command)
+  end)
+
+  it("returns an empty list for empty input", function()
+    assert.same({}, dap.parse_powershell_output(""))
+  end)
+
+  it("handles CRLF line endings", function()
+    local entries = dap.parse_powershell_output("1|0|foo\r\n2|1|bar\r\n")
+    assert.equals(2, #entries)
+  end)
+end)
+
+describe("dap.filter_services (Windows-style paths)", function()
+  local entries = dap.parse_powershell_output(WINDOWS_ASPIRE_PS_OUTPUT)
+  local workspace_root = [[C:\repo]]
+  local apphost_dir = [[C:\repo\Sample.AppHost]]
+
+  it("finds exactly the two real service binaries despite backslash separators", function()
+    local services = dap.filter_services(entries, workspace_root, apphost_dir)
+    local pids = {}
+    for _, s in ipairs(services) do
+      pids[#pids + 1] = s.pid
+    end
+    assert.same({ 20900, 20979 }, sorted(pids))
+  end)
+
+  it("excludes the AppHost orchestrator binary itself", function()
+    local services = dap.filter_services(entries, workspace_root, apphost_dir)
+    for _, s in ipairs(services) do
+      assert.is_not.equal(20781, s.pid)
+    end
+  end)
+end)
+
+describe("dap.resolve_name", function()
+  it("derives the project name from a macOS/Linux-style path", function()
+    assert.equals("Sample.ApiService", dap.resolve_name("/repo/Sample.ApiService/bin/Debug/net9.0/Sample.ApiService"))
+  end)
+
+  it("derives the project name from a Windows-style path with .exe", function()
+    assert.equals(
+      "Sample.ApiService",
+      dap.resolve_name([[C:\repo\Sample.ApiService\bin\Debug\net9.0\Sample.ApiService.exe]])
+    )
+  end)
+
+  it("falls back to the raw command when the shape doesn't match", function()
+    assert.equals("some random command", dap.resolve_name("some random command"))
+  end)
+end)
+
 describe("dap.filter_services (real Aspire process tree)", function()
   local entries = dap.parse_ps_output(REAL_ASPIRE_PS_OUTPUT)
   local workspace_root = "/repo"
