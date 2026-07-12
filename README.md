@@ -2,10 +2,6 @@
 
 Neovim plugin that treats VS Code's `.vscode/launch.json` Aspire launch type (`"type": "aspire"`) as a first-class launch target: launch a .NET Aspire AppHost, surface its dashboard URL, and attach `nvim-dap` to the services it spawns.
 
-## Status
-
-Early development. See [PLAN.md](./PLAN.md) for design and milestones.
-
 ## Requirements
 
 - Neovim 0.10+
@@ -100,4 +96,4 @@ which should print both entitlements listed above. This only needs doing once pe
 
 - Container-backed resources (Redis, Postgres, etc.) aren't attachable — only plain `Project` resources.
 - On Windows, `:AspireStop` signals the AppHost process itself but doesn't discover/kill its child service processes (its descendant-kill still relies on `pgrep`, which Windows doesn't have) — you may need to end those manually via Task Manager.
-- **Apple Silicon**: `netcoredbg` doesn't ship a native macOS arm64 build, so Neovim plugin managers install the x86_64 build under Rosetta 2. A Rosetta-translated debugger cannot attach to a native arm64 .NET process — `:AspireAttach` will fail during the attach handshake on Apple Silicon Macs even with the entitlement fix above. This is an upstream `netcoredbg` limitation, not specific to this plugin.
+- Apple Silicon: netcoredbg supports macOS arm64 as a community-supported source build, but its official releases do not currently ship a native macOS arm64 binary. Consequently, package managers such as Mason generally install the official x86_64 build, which macOS runs through Rosetta 2. netcoredbg and the target .NET runtime must use compatible architectures: the Rosetta-translated x86_64 debugger cannot attach reliably to a native arm64 CoreCLR process. As a result, :AspireAttach will fail when it uses the x86_64 netcoredbg against a native arm64 Aspire process. The workaround is to use a community-built or locally compiled arm64 netcoredbg, or run both dotnet and netcoredbg as x86_64 under Rosetta. This is primarily an upstream netcoredbg release-packaging and architecture-support limitation rather than an AspireAttach-specific issue. 
