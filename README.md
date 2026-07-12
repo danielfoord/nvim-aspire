@@ -40,7 +40,7 @@ Run `:checkhealth aspire` after installing to confirm `dotnet`, `netcoredbg`, an
 - `:AspireStop` — stop the running AppHost and its child processes.
 - `:AspireLog` — open the AppHost's output log buffer (build output, `dotnet run` stdout/stderr) — handy while waiting for services to come up.
 - `:AspireDashboard` — open the Aspire dashboard URL.
-- `:AspireResources` — list running resources (stub for now).
+- `:AspireResources` — list running .NET service resources (name, pid, command) in a scratch buffer.
 - `:AspireAttach` — attach `nvim-dap` to a running .NET service.
 - `:AspireAttachAll` — attach `nvim-dap` to every discovered .NET service.
 
@@ -94,6 +94,6 @@ which should print both entitlements listed above. This only needs doing once pe
 
 ## Known limitations
 
-- Container-backed resources (Redis, Postgres, etc.) aren't attachable — only plain `Project` resources.
+- Container-backed resources (Redis, Postgres, etc.) aren't attachable or listed by `:AspireResources` — only plain `Project` resources have a local .NET process to discover.
 - On Windows, `:AspireStop` signals the AppHost process itself but doesn't discover/kill its child service processes (its descendant-kill still relies on `pgrep`, which Windows doesn't have) — you may need to end those manually via Task Manager.
 - Apple Silicon: netcoredbg supports macOS arm64 as a community-supported source build, but its official releases do not currently ship a native macOS arm64 binary. Consequently, package managers such as Mason generally install the official x86_64 build, which macOS runs through Rosetta 2. netcoredbg and the target .NET runtime must use compatible architectures: the Rosetta-translated x86_64 debugger cannot attach reliably to a native arm64 CoreCLR process. As a result, :AspireAttach will fail when it uses the x86_64 netcoredbg against a native arm64 Aspire process. The workaround is to use a community-built or locally compiled arm64 netcoredbg, or run both dotnet and netcoredbg as x86_64 under Rosetta. This is primarily an upstream netcoredbg release-packaging and architecture-support limitation rather than an AspireAttach-specific issue. 

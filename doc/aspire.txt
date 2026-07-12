@@ -41,7 +41,8 @@ the AppHost spawns.
 :AspireDashboard     Open the Aspire dashboard URL.
 
                                                              *:AspireResources*
-:AspireResources     List running resources.
+:AspireResources     List running .NET service resources (name, pid,
+                     command) in a scratch buffer.
 
                                                                 *:AspireAttach*
 :AspireAttach        Attach |nvim-dap| to a running .NET service.

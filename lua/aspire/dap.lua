@@ -305,7 +305,12 @@ function M.attach(pid, opts)
   })
 end
 
-local function running_services()
+--- Discover running .NET service processes belonging to the current
+--- AppHost run, warning (and returning nil) if the AppHost isn't
+--- running or nothing attachable was found. Shared by `:AspireAttach`,
+--- `:AspireAttachAll`, and `:AspireResources`.
+---@return { name: string, pid: integer, cmd: string }[]|nil
+function M.running_services()
   local runner = require("aspire.runner")
   if not runner.job then
     vim.notify("aspire: AppHost is not running — launch it first", vim.log.levels.WARN)
@@ -324,7 +329,7 @@ end
 --- Prompt the user to pick a running service and attach to it.
 --- Backs `:AspireAttach`.
 function M.pick_and_attach()
-  local services = running_services()
+  local services = M.running_services()
   if not services then
     return
   end
@@ -343,7 +348,7 @@ end
 
 --- Attach to every discovered service, no prompt. Backs `:AspireAttachAll`.
 function M.attach_all()
-  local services = running_services()
+  local services = M.running_services()
   if not services then
     return
   end
