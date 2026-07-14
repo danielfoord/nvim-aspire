@@ -32,6 +32,47 @@ use({
 })
 ```
 
+**[vim-plug](https://github.com/junegunn/vim-plug)**
+
+```vim
+Plug 'mfussenegger/nvim-dap' " optional, only needed for :AspireAttach*
+Plug 'danielfoord/nvim-aspire'
+```
+
+```lua
+require("aspire").setup({})
+```
+
+**[mini.deps](https://github.com/echasnovski/mini.deps)**
+
+```lua
+local add = MiniDeps.add
+add({ source = "mfussenegger/nvim-dap" }) -- optional, only needed for :AspireAttach*
+add({ source = "danielfoord/nvim-aspire" })
+require("aspire").setup({})
+```
+
+**[paq.nvim](https://github.com/savq/paq-nvim)**
+
+```lua
+require("paq")({
+  "mfussenegger/nvim-dap", -- optional, only needed for :AspireAttach*
+  "danielfoord/nvim-aspire",
+})
+require("aspire").setup({})
+```
+
+**Native `packadd`** (no plugin manager)
+
+```bash
+git clone https://github.com/danielfoord/nvim-aspire \
+  "${XDG_DATA_HOME:-$HOME/.local/share}/nvim/site/pack/plugins/start/nvim-aspire"
+```
+
+```lua
+require("aspire").setup({})
+```
+
 Run `:checkhealth aspire` after installing to confirm `dotnet`, `netcoredbg`, and `nvim-dap` are all detected correctly.
 
 ## Commands
