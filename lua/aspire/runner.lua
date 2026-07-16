@@ -30,6 +30,13 @@ local function ensure_log_buffer()
   return buf
 end
 
+local function scroll_to_bottom(buf)
+  local last = vim.api.nvim_buf_line_count(buf)
+  for _, win in ipairs(vim.fn.win_findbuf(buf)) do
+    pcall(vim.api.nvim_win_set_cursor, win, { last, 0 })
+  end
+end
+
 local function append_line(line)
   vim.schedule(function()
     local buf = ensure_log_buffer()
@@ -39,6 +46,7 @@ local function append_line(line)
     else
       vim.api.nvim_buf_set_lines(buf, last, last, false, { line })
     end
+    scroll_to_bottom(buf)
   end)
 end
 
@@ -168,10 +176,18 @@ function M.stop()
   vim.notify("aspire: stopping AppHost", vim.log.levels.INFO)
 end
 
---- Open (or focus) the log buffer in the current window.
+--- Open (or focus) the log buffer in a horizontal split, tailing the end.
 function M.open_log()
   local buf = ensure_log_buffer()
-  vim.api.nvim_set_current_buf(buf)
+  local wins = vim.fn.win_findbuf(buf)
+  if #wins > 0 then
+    vim.api.nvim_set_current_win(wins[1])
+  else
+    vim.cmd("botright split")
+    vim.api.nvim_win_set_buf(0, buf)
+    vim.api.nvim_win_set_height(0, 15)
+  end
+  scroll_to_bottom(buf)
 end
 
 return M

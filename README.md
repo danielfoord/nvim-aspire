@@ -79,7 +79,7 @@ Run `:checkhealth aspire` after installing to confirm `dotnet`, `netcoredbg`, an
 
 - `:AspireLaunch` — parse `.vscode/launch.json`, find the AppHost, run it, stream output to a log buffer, surface the dashboard URL.
 - `:AspireStop` — stop the running AppHost and its child processes.
-- `:AspireLog` — open the AppHost's output log buffer (build output, `dotnet run` stdout/stderr) — handy while waiting for services to come up.
+- `:AspireLog` — open the AppHost's output log buffer (build output, `dotnet run` stdout/stderr) in a horizontal split, tailing new output as it streams in — handy while waiting for services to come up.
 - `:AspireDashboard` — open the Aspire dashboard URL.
 - `:AspireResources` — list running .NET service resources (name, pid, command) in a scratch buffer.
 - `:AspireAttach` — attach `nvim-dap` to a running .NET service.
